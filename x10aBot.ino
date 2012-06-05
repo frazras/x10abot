@@ -1,7 +1,17 @@
-#include <Flash.h>
+/**
+*Included the Flash Library http://arduiniana.org/libraries/flash/ 
+*A Library to Ease Accessing Flash-based (PROGMEM) Data
+*This was used to store the example Bytecode from the LEGO bytecode documentation
+**/
+#include <Flash.h> 
 
-  // put your setup code here, to run once:
- char my_bytecode[]="4D696E6473746F726D734E5854000005030016000C000F0005000A00000000000C00010007000601000006000400010008008813000010C000A000100FFFFFFFFFF0000000000800000010002002A60FFFFFFF0F";
+/**
+* The bytecode below is stored in flash at compile time, it will eventually
+* be placed on an SDCard so it can be loaded on during program execution after the 
+* Arduino firmware has been compiled
+**/
+//char my_bytecode[]="4D696E6473746F726D734E5854000005030016000C000F0005000A00000000000C00010007000601000006000400010008008813000010C000A000100FFFFFFFFFF0000000000800000010002002A60FFFFFFF0F";
+
 FLASH_TABLE(byte, bytecode, 10, 
 {0x4D, 0x69, 0x6E, 0x64, 0x73, 0x74, 0x6F, 0x72, 0x6D, 0x73},
 {0x4E, 0x58, 0x54, 0x00, 0x00, 0x05, 0x03, 0x00, 0x16, 0x00},
@@ -13,6 +23,9 @@ FLASH_TABLE(byte, bytecode, 10,
 {0x08, 0x00, 0x00, 0x00, 0x10, 0x00, 0x20, 0x02, 0xA6, 0x0F},
 {0xFF, 0xFF, 0xFF, 0x0F}); 
 
+/**
+* Manually set SRAM size to manage static and dynamic data
+**/
 byte SRAM[10][50];
 
 //The PC register
@@ -30,21 +43,18 @@ int dsh_memory_manager_head;
 int dsh_memory_manager_tail;
 int dsh_dope_vector_offset;
 
+//clump related dataspace headers
 int dsh_clump_count;
 int dsh_code_word_count;
 
 
 void setup() {
- // initialize serial:
-  Serial.begin(9600);
- 
-  //Print "Mindstorms" as the first to bytes
-  Serial.println("Byte below:");
-  Serial.write(getByte(0,9),10);
-  Serial.println("");
+  /**
+  * Testing code functionality below
+  **/
   
-  //Print the Letter 's', last letter of Mindstorms
-  Serial.write(getByte(9));
+  // initialize serial:
+  Serial.begin(9600);
   
   checkVersion();
 }
@@ -57,6 +67,15 @@ void loop() {
 * Get the LEGO Mindstorms version CODE
 **/
 byte* checkVersion(){
+  //Print "Mindstorms" as the first bytes
+  Serial.println("Byte below:");
+  Serial.write(getByte(0,9),10);
+  Serial.println("");
+  
+  //Print the Letter 's', last letter of Mindstorms
+  Serial.write(getByte(9));
+  
+  
   program_counter += 16;
   return NULL;
 }
