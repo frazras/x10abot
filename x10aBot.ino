@@ -36,14 +36,20 @@ byte flash[10][10]={{0x4D, 0x69, 0x6E, 0x64, 0x73, 0x74, 0x6F, 0x72, 0x6D, 0x73}
 /**
 * Manually set SRAM size to manage static and dynamic data
 **/
+//SRAM width size
+#define  SRAMX 4
+//SRAM height size
+#define	SRAMY 50
+
+
 long sram[4][50];
 
-long * sram_ptr;
+int sram_ptr=0;
 
 
 
 //Dataspace table of contents entry size
-#define  DSTOC_ENTRY 4
+#define	DSTOC_ENTRY 4
 
 //The PC register
 long program_counter = 0;
@@ -148,14 +154,28 @@ void  initialiseDataspace(){
     Serial.print("PC2:   ");
     Serial.println(program_counter);
     Serial.println("*----------------");*/
-    printArray(getByte(program_counter, endrange, byte_slice));
+    getByte(program_counter, endrange, byte_slice);
     //Serial.write(getByte(program_counter, endrange, byte_slice),5);
     //Serial.write(getByte(0,9,byte_slice),10);
     //Serial.println("**----------------");
     //dataspace segment offset which stores all the variables
     //int ds_segment = program_counter;
     //SRAM*/
-   
+    
+    int sizeOfB = sizeof byte_slice / sizeof(byte);
+    int sizeOfL = sizeOfB / 4;
+    if(sizeOfB % 4 != 0) ++sizeOfL;
+
+    for(int i = 0; i < sizeOfB; i+=4){
+        long currentLong = 0;
+
+        if(i + 3 < sizeOfB) currentLong = (currentLong << 8) + byte_slice[i+3];
+        if(i + 2 < sizeOfB) currentLong = (currentLong << 8) + byte_slice[i+2];
+        if(i + 1 < sizeOfB) currentLong = (currentLong << 8) + byte_slice[i+1];
+        currentLong = (currentLong << 8) + byte_slice[i+0];
+        setLong(currentLong, sram_ptr, sram);
+    }
+    printArray(sram);
 
 }
 
@@ -169,16 +189,44 @@ void getDSTOCValue(int index){
 }
 
 void printArray(byte * array){
-   for (int x = 0; x < sizeof(array); x++) {
+   for (int x = 0; x < sizeof(array)/sizeof(byte); x++) {
         Serial.println(array[x], HEX); 
+    }
+}
+void printArray(long * array){
+   for (int x = 0; x < sizeof(array)/sizeof(long); x++) {
+        Serial.println(array[x], HEX); 
+    }
+}
+void printArray(long array[][50]){
+   for (int y = 0; y < SRAMY; y++) {
+        for (int x = 0; x < SRAMX; x++) {
+            if (!array[x][y])break;
+            Serial.println(array[x][y], HEX); 
+          }
+          //if (!array[x][y])break;
     }
 }
 
 /**
-* Set a single byte at he end of free RAM
+* Set a single long at the end of free RAM
 **/
-void setByte(long data){
+void setLong(long data, int& sram_ptr, long sram[][50]){
   
+  //number of columns in the sram layout
+  int cols = 4;
+  
+  //find the row to store the long
+  long row = (sram_ptr/cols);
+  
+  //find the column with the requested byte
+  int col = sram_ptr%cols;
+  
+  //set the long at the specified co-ordinates
+  sram[row][col] = data;
+  
+  //increment sram pointer
+  sram_ptr++;
 }
 
 /**
