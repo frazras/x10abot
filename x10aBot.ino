@@ -22,11 +22,28 @@ FLASH_TABLE(byte, bytecode, 10,
 {0x0F, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0x00, 0x00, 0x00, 0x00},
 {0x08, 0x00, 0x00, 0x00, 0x10, 0x00, 0x20, 0x02, 0xA6, 0x0F},
 {0xFF, 0xFF, 0xFF, 0x0F}); 
-
+/*
+byte flash[10][10]={{0x4D, 0x69, 0x6E, 0x64, 0x73, 0x74, 0x6F, 0x72, 0x6D, 0x73},
+{0x4E, 0x58, 0x54, 0x00, 0x00, 0x05, 0x03, 0x00, 0x16, 0x00},
+{0x0C, 0x00, 0x0F, 0x00, 0x05, 0x00, 0x0A, 0x00, 0x00, 0x00},
+{0x00, 0x00, 0x0C, 0x00, 0x01, 0x00, 0x07, 0x00, 0x06, 0x01},
+{0x00, 0x00, 0x06, 0x00, 0x04, 0x00, 0x01, 0x00, 0x08, 0x00},
+{0x88, 0x13, 0x00, 0x00, 0x10, 0xC0, 0x00, 0xA0, 0x00, 0x10},
+{0x0F, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0x00, 0x00, 0x00, 0x00},
+{0x08, 0x00, 0x00, 0x00, 0x10, 0x00, 0x20, 0x02, 0xA6, 0x0F},
+{0xFF, 0xFF, 0xFF, 0x0F}};
+*/
 /**
 * Manually set SRAM size to manage static and dynamic data
 **/
-byte SRAM[10][50];
+long sram[4][50];
+
+long * sram_ptr;
+
+
+
+//Dataspace table of contents entry size
+#define  DSTOC_ENTRY 4
 
 //The PC register
 long program_counter = 0;
@@ -47,6 +64,11 @@ int dsh_dope_vector_offset;
 int dsh_clump_count;
 int dsh_code_word_count;
 
+  /**
+  * 
+  **/
+  byte byte_slice[47];
+  
 
 void setup() {
   /**
@@ -56,7 +78,12 @@ void setup() {
   // initialize serial:
   Serial.begin(9600);
   
+
+  
+  
   checkVersion();
+  getDataspaceHeaders();
+  initialiseDataspace();
 }
 
 void loop() {
@@ -68,12 +95,13 @@ void loop() {
 **/
 byte* checkVersion(){
   //Print "Mindstorms" as the first bytes
-  Serial.println("Byte below:");
-  Serial.write(getByte(0,9),10);
+  Serial.println("__________");
+  Serial.write(getByte(0,9, byte_slice ),10);
+  //printArray(getByte(0,9));
   Serial.println("");
   
   //Print the Letter 's', last letter of Mindstorms
-  Serial.write(getByte(9));
+  //Serial.write(getByte(9));
   
   
   program_counter += 16;
@@ -94,22 +122,39 @@ void getDataspaceHeaders(){
     dsh_memory_manager_head = getByte(program_counter += 2);
     dsh_memory_manager_tail = getByte(program_counter += 2);
     dsh_dope_vector_offset = getByte(program_counter += 2);
-    
     dsh_clump_count = getByte(program_counter += 2);
     dsh_code_word_count = getByte(program_counter += 2);
+    program_counter += 2;
 }
 
 
 void  initialiseDataspace(){
-    long pc = program_counter;
-    int dstoc_type[]={0,8,8,16,16,32,0,0,0};
- 
-    //4 bytes per DSTOC entry
-    program_counter += (dsh_dstoc_count*4);
+    long dstoc_pc = program_counter;
+    int dstoc_type[]={0,1,1,2,2,4,4,0,0,0};
+
+    //skip the DSTOC
+    program_counter += (dsh_dstoc_count*DSTOC_ENTRY);
     
+    //get data type
+    byte type = getByte(dstoc_pc);
+    //Serial.println(type);
+   // byte*  data[10];
+    long endrange;
+    endrange = program_counter+dstoc_type[type]-1;
+    //getByte(program_counter, endrange);
+    /*Serial.println("-----");
+    Serial.print("Endrange:");
+    Serial.println(endrange);
+    Serial.print("PC2:   ");
+    Serial.println(program_counter);
+    Serial.println("*----------------");*/
+    printArray(getByte(program_counter, endrange, byte_slice));
+    //Serial.write(getByte(program_counter, endrange, byte_slice),5);
+    //Serial.write(getByte(0,9,byte_slice),10);
+    //Serial.println("**----------------");
     //dataspace segment offset which stores all the variables
     //int ds_segment = program_counter;
-    
+    //SRAM*/
    
 
 }
@@ -121,6 +166,19 @@ void executeCodespace(){}
 
 void getDSTOCValue(int index){
 
+}
+
+void printArray(byte * array){
+   for (int x = 0; x < sizeof(array); x++) {
+        Serial.println(array[x], HEX); 
+    }
+}
+
+/**
+* Set a single byte at he end of free RAM
+**/
+void setByte(long data){
+  
 }
 
 /**
@@ -139,6 +197,7 @@ byte getByte(long offset){
   
   //access the byte co-ordinates
   return bytecode[row][col];
+  //return flash[row][col];
 }
 
 /**
@@ -146,10 +205,10 @@ byte getByte(long offset){
 * begin and end points(inclusive) relative to the top of the file.
 * Offsets begin at zero(0)
 **/
-byte* getByte(long offset_start, long offset_end){
+byte* getByte(long offset_start, long offset_end, byte * byte_slice){
   
   //The number of bytes in the range
-  int byte_range = offset_end - offset_start;
+  long byte_range = offset_end - offset_start;
   
   //limit number of bytes in the range to 48
   if ((byte_range)>47){
@@ -162,11 +221,13 @@ byte* getByte(long offset_start, long offset_end){
   }
    
  //Create an array to store output byte range   
- byte byte_slice[byte_range];
- 
+ //byte byte_slice[byte_range];
+ //Serial.println("*******");
+ //Serial.println(byte_range);
  //Loop through the bytecode and extract the requested slice
  for(long y=0; y<=byte_range; y++){ 
    byte_slice[y] = getByte(y+offset_start);
+   //Serial.println(byte_slice[y], HEX);
  }
  
  /** 
